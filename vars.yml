@@ -1,0 +1,26 @@
+## ZFS settings
+
+# Name of the zpool (the zpool must be pre-provisioned)
+zpool_name: n7wings
+# Name of the dataset where to map the "/var/lib/mysql" dir of the mysql container
+mysql_zfs_fs: mysql_data
+# Name of the dataset where to map the "/var/www/html" dir of the owncloud container
+owncloud_zfs_fs_data: owncloud_data
+
+
+## Docker containers settings
+
+# Name of the mysql container instance
+mysql_instance_name: n7-mysql
+# Name of the owncloud container instance
+owncloud_instance_name: n7-owncloud
+# Password for the admin user for owncloud
+owncloud_admin_password: <>
+
+
+## MySql settings
+
+# Password for the "root" user
+mysql_pass: <>
+# Password for the "owncloud" user
+mysql_owncloud_user_pwd: <>
