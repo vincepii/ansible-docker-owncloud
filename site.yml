@@ -1,0 +1,116 @@
+---
+  - hosts: all
+    become_method: sudo
+    become: yes
+    vars_files:
+      - vars.yml
+    tasks:
+
+      - name: install docker
+        apt: name=docker.io state=latest
+
+      - name: install pip
+        apt: name=python-pip state=latest
+
+      - name: install mysql-dev for ansible
+        apt: name=libmysqlclient-dev state=latest
+
+      - name: install pip packages for ansible
+        pip: name="{{ item }}"
+        with_items:
+          - setuptools
+          - docker-py
+          - mysql-python
+
+      - name: create a zfs volume for the mysql container
+        zfs: name="{{ zpool_name }}/{{ mysql_zfs_fs }}" state=present
+
+      - name: create zfs volumes for owncloud
+        zfs: name="{{ zpool_name }}/{{ owncloud_zfs_fs_data }}" state=present
+
+      - name: mysql docker container
+        docker:
+          name: "{{ mysql_instance_name }}"
+          image: mysql:latest
+          state: started
+          pull: always
+          volumes:
+            - "/{{ zpool_name }}/{{ mysql_zfs_fs }}:/var/lib/mysql"
+          env:
+            MYSQL_ROOT_PASSWORD: "{{ mysql_pass }}"
+
+      - name: get the IP address of the mysql container
+        command: docker inspect --format '{{ '{{' }} .NetworkSettings.IPAddress {{ '}}' }}' "{{ mysql_instance_name }}"
+        register: _mysql_container_ip
+
+      - set_fact: mysql_container_ip="{{ _mysql_container_ip.stdout }}"
+
+      - name: create mysql db for owncloud
+        register: result
+        mysql_db: name='owncloud' state=present login_user=root login_password="{{ mysql_pass }}" login_port=3306 login_host="{{ mysql_container_ip }}"
+        # Mysql service may take some time to be up and running
+        until: "result.get('changed') != None"
+        retries: 10
+        delay: 5
+        ignore_errors: True
+
+      # Assert that the previous loop ended in the right state
+      - assert: { that: "result.get('changed') != None"}
+
+      - name: create mysql user for owncloud and assign privileges
+        mysql_user: name='owncloud' host='%' password="{{ mysql_owncloud_user_pwd }}" priv=owncloud.*:ALL state=present login_user=root login_password="{{ mysql_pass }}" login_port=3306 login_host="{{ mysql_container_ip }}"
+
+      - name: owncloud docker container
+        docker:
+          name: "{{ owncloud_instance_name }}"
+          image: owncloud:9.0
+          state: started
+          pull: always
+          expose:
+            - "443"
+          ports:
+            # We don't forward port 80
+            - "8001:443"
+          links:
+            - "{{ mysql_instance_name }}:mysql"
+          volumes:
+            - "/{{ zpool_name }}/{{ owncloud_zfs_fs_data }}:/var/www/html"
+          env:
+            APACHE_LOG_DIR: /var/log/apache2
+
+      - name: complete the owncloud installation with the admin user
+        command: "docker exec {{ owncloud_instance_name }} {{ item }}"
+        with_items:
+          - apt-get update
+          - apt-get install sudo
+          - sudo -u www-data php occ maintenance:install --admin-user "admin" --admin-pass {{ owncloud_admin_password }}
+
+      - name: add the ansible host to the trusted domain
+        lineinfile:
+          dest: "/{{ zpool_name }}/{{ owncloud_zfs_fs_data }}/config/config.php"
+          regexp: "0 => 'localhost"
+          line: "0 => '{{ inventory_hostname }}',"
+          state: present
+
+      - name: convert sqlite to mysql for owncloud
+        command: docker exec {{ owncloud_instance_name }} sudo -u www-data php occ db:convert-type --password {{ mysql_owncloud_user_pwd }} --all-apps mysql owncloud {{ mysql_container_ip }} owncloud
+
+      - name: install APCu for caching
+        command: docker exec {{ owncloud_instance_name }} apt-get install -y php5-apcu
+
+      - name: configure owncloud to use APCu cache
+        lineinfile:
+          dest: "/{{ zpool_name }}/{{ owncloud_zfs_fs_data }}/config/config.php"
+          line: "  'memcache.local' => '{{ '\\OC\\Memcache\\APCu' }}',"
+          state: present
+          insertbefore: "^\\);$"
+
+      - name: setup the owncloud container for SSL
+        command: "docker exec {{ owncloud_instance_name }} {{ item }}"
+        with_items:
+          - apt-get install ssl-cert
+          - a2enmod ssl
+          - a2ensite default-ssl
+
+      - name: restart the owncloud docker container
+        command: docker restart {{ owncloud_instance_name }}
