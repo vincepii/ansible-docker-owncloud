@@ -78,22 +78,34 @@
           env:
             APACHE_LOG_DIR: /var/log/apache2
 
-      - name: complete the owncloud installation with the admin user
+      - name: install the sudo tool in owncloud container
         command: "docker exec {{ owncloud_instance_name }} {{ item }}"
         with_items:
           - apt-get update
           - apt-get install sudo
-          - sudo -u www-data php occ maintenance:install --admin-user "admin" --admin-pass {{ owncloud_admin_password }}
+
+      - name: check if owncloud is in maintenance mode
+        register: result
+        command: bash -c "docker exec {{ owncloud_instance_name }} sudo -u www-data php occ | grep maintenance:install | wc -l"
+
+      - name: complete the owncloud installation with the admin user
+        command: "docker exec {{ owncloud_instance_name }} sudo -u www-data php occ maintenance:install --admin-user \"admin\" --admin-pass {{ owncloud_admin_password }}"
+        when: "result.stdout == '1'"
 
       - name: add the ansible host to the trusted domain
         lineinfile:
           dest: "/{{ zpool_name }}/{{ owncloud_zfs_fs_data }}/config/config.php"
-          regexp: "0 => 'localhost"
-          line: "0 => '{{ inventory_hostname }}',"
+          insertafter: "0 => 'localhost"
+          line: "    1 => '{{ inventory_hostname }}',"
           state: present
+
+      - name: get the type of the database
+        register: result
+        command: bash -c "docker exec {{ owncloud_instance_name }} sudo -u www-data php occ config:list | grep dbtype"
 
       - name: convert sqlite to mysql for owncloud
         command: docker exec {{ owncloud_instance_name }} sudo -u www-data php occ db:convert-type --password {{ mysql_owncloud_user_pwd }} --all-apps mysql owncloud {{ mysql_container_ip }} owncloud
+        when: "'mysql' not in result.stdout"
 
       - name: install APCu for caching
         command: docker exec {{ owncloud_instance_name }} apt-get install -y php5-apcu
