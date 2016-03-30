@@ -26,5 +26,6 @@ Owncloud will be setup with the following features:
 * Configure the hosts in the `hosts` file
 * Configure the variables in the `vars.yml` file
 * Run the playbook with something like
-
-      ansible-playbook -i hosts site.yml
+```
+ansible-playbook -i hosts site.yml
+```
