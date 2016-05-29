@@ -1,0 +1,3 @@
+---
+  # Name of the mysql container instance
+  mysql_instance_name: n7-mysql

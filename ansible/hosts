@@ -1,1 +1,5 @@
-192.168.0.40 ansible_user=vince
+[owncloud]
+n7
+
+[mysql]
+n7

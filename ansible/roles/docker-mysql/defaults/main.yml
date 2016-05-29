@@ -1,0 +1,4 @@
+---
+  mysql_host_path: /some/where
+  mysql_instance_name: mysql
+  mysql_pass: root

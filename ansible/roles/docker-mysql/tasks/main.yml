@@ -1,0 +1,14 @@
+---
+- name: install mysql-dev for ansible
+  apt: name=libmysqlclient-dev state=latest
+
+- name: mysql docker container
+  docker:
+    name: "{{ mysql_instance_name }}"
+    image: mysql:latest
+    state: started
+    pull: always
+    volumes:
+      - "{{ mysql_host_path }}:/var/lib/mysql"
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mysql_pass }}"

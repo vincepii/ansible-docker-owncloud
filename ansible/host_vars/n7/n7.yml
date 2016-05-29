@@ -1,0 +1,21 @@
+---
+
+  # Name of the dataset where to map the "/var/www/html" dir of the owncloud container
+  owncloud_zfs_fs_data: owncloud_data
+  # Name of the dataset where to map the "/var/lib/mysql" dir of the mysql container
+  mysql_zfs_fs: mysql_data
+
+  zfs_zpool_name: n7wings
+  zfs_datasets_fs:
+    - "{{ owncloud_zfs_fs_data }}"
+    - "{{ mysql_zfs_fs }}"
+
+  owncloud_host_path: /{{ zfs_zpool_name }}/{{ owncloud_zfs_fs_data }}
+  mysql_host_path: "/{{ zfs_zpool_name }}/{{ mysql_zfs_fs }}"
+
+  # Password for the admin user for owncloud
+  owncloud_admin_password: "{{ vault_owncloud_admin_password }}"
+  # Password for the "root" user
+  mysql_pass: "{{ vault_mysql_pass }}"
+  # Password for the "owncloud" user
+  mysql_owncloud_user_pwd: "{{ vault_mysql_owncloud_user_pwd }}"

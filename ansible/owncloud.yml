@@ -1,0 +1,23 @@
+---
+- hosts: all
+  become_method: sudo
+  become: yes
+
+  pre_tasks:
+    - name: install docker
+      apt: name=docker.io state=latest
+
+    - name: install pip
+      apt: name=python-pip state=latest
+
+    - name: install pip packages for ansible
+      pip: name="{{ item }}"
+      with_items:
+        - setuptools
+        - docker-py
+        - mysql-python
+
+  roles:
+    - zfs-fs-datasets
+    - docker-mysql
+    - docker-owncloud

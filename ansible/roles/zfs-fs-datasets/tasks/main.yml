@@ -1,0 +1,4 @@
+---
+- name: create zfs fs datasets
+  zfs: name="{{ zfs_zpool_name }}/{{ item }}" state=present
+  with_items: "{{ zfs_datasets_fs }}"

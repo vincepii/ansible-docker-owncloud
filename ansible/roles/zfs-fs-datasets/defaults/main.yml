@@ -1,0 +1,3 @@
+---
+  zfs_zpool_name: zfszpool
+  zfs_datasets_fs:

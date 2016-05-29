@@ -1,0 +1,7 @@
+---
+  mysql_instance_name: mysql
+  mysql_pass: root_pwd
+  mysql_owncloud_user_pwd: user_pwd
+  owncloud_instance_name: owncloud
+  owncloud_host_path: /some/where
+  owncloud_admin_password: pwd
