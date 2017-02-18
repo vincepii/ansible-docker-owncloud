@@ -62,7 +62,7 @@
 - name: set the IP of the mysql container with the linked env var
   lineinfile:
     dest: "{{ owncloud_host_path }}/config/config.php"
-    line: "  'dbhost' => '{{ mysql_container_ip }}',"
+    line: "  'dbhost' => gethostbyname('{{ mysql_instance_name }}'),"
     state: present
     regexp: "'dbhost'"
     insertafter: "'dbname'"
